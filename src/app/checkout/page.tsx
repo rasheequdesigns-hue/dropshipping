@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
@@ -40,6 +40,29 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 const STATES = ["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Delhi","Jammu & Kashmir","Ladakh"];
 const NG = "#00E676";
+const SAVED_ADDR_KEY = "peadia_saved_addresses";
+
+interface SavedAddress {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
+function getSavedAddresses(): SavedAddress[] {
+  try {
+    const raw = localStorage.getItem(SAVED_ADDR_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveSavedAddresses(list: SavedAddress[]) {
+  localStorage.setItem(SAVED_ADDR_KEY, JSON.stringify(list));
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -60,6 +83,43 @@ export default function CheckoutPage() {
     payment:"COD", promoCode:"",
   });
   const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({});
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null);
+
+  // Load saved addresses on mount
+  useEffect(() => {
+    const addrs = getSavedAddresses();
+    setSavedAddresses(addrs);
+    // Auto-fill with the most recent saved address
+    if (addrs.length > 0) {
+      const latest = addrs[0];
+      setSelectedSavedId(latest.id);
+      setForm(f => ({ ...f, name: latest.name, phone: latest.phone, email: latest.email, address: latest.address, city: latest.city, state: latest.state, pincode: latest.pincode }));
+    }
+  }, []);
+
+  const selectSavedAddress = (id: string | null) => {
+    setSelectedSavedId(id);
+    if (id === null) {
+      setForm(f => ({ ...f, name: "", phone: "", email: "", address: "", city: "", state: "", pincode: "" }));
+      return;
+    }
+    const addr = savedAddresses.find(a => a.id === id);
+    if (addr) {
+      setForm(f => ({ ...f, name: addr.name, phone: addr.phone, email: addr.email, address: addr.address, city: addr.city, state: addr.state, pincode: addr.pincode }));
+    }
+  };
+
+  const deleteSavedAddress = (id: string) => {
+    const updated = savedAddresses.filter(a => a.id !== id);
+    setSavedAddresses(updated);
+    saveSavedAddresses(updated);
+    if (selectedSavedId === id) {
+      setSelectedSavedId(null);
+      setForm(f => ({ ...f, name: "", phone: "", email: "", address: "", city: "", state: "", pincode: "" }));
+    }
+    toast("Address removed", "success");
+  };
 
   const freeMin     = s.free_delivery_min_amount ?? 499;
   const deliveryFee = total >= freeMin ? 0 : 49;
@@ -159,6 +219,18 @@ export default function CheckoutPage() {
       // Clear referral code so it doesn't double-credit
       if (typeof window !== "undefined") sessionStorage.removeItem("peadia_ref");
 
+      // Save address for next time
+      const existing = getSavedAddresses();
+      const isDuplicate = existing.some(a => a.phone === form.phone && a.address === form.address && a.pincode === form.pincode);
+      if (!isDuplicate) {
+        const newAddr: SavedAddress = {
+          id: `addr_${Date.now()}`,
+          name: form.name, phone: form.phone, email: form.email,
+          address: form.address, city: form.city, state: form.state, pincode: form.pincode,
+        };
+        saveSavedAddresses([newAddr, ...existing].slice(0, 5));
+      }
+
       clearCart();
       toast("Order placed! 🎉", "success");
       router.push(`/order/${order.order_number ?? tempRef}`);
@@ -190,6 +262,49 @@ export default function CheckoutPage() {
         <div className="checkout-grid">
           {/* Form */}
           <form onSubmit={e => { e.preventDefault(); placeOrder(); }} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+
+            {/* Saved addresses selector */}
+            {savedAddresses.length > 0 && (
+              <div className="card" style={{ padding: "16px 18px" }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)", marginBottom: 12, paddingBottom: 8, borderBottom: "1px solid var(--bd)" }}>📦 Saved Addresses</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {savedAddresses.map(addr => (
+                    <label key={addr.id} style={{
+                      display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px",
+                      borderRadius: 10, cursor: "pointer",
+                      border: `1.5px solid ${selectedSavedId === addr.id ? NG : "var(--bd)"}`,
+                      background: selectedSavedId === addr.id ? "rgba(0,230,118,0.06)" : "transparent",
+                      transition: "border-color 0.15s, background 0.15s",
+                    }}>
+                      <input type="radio" name="savedAddr" checked={selectedSavedId === addr.id}
+                        onChange={() => selectSavedAddress(addr.id)} style={{ accentColor: NG, marginTop: 3 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)" }}>{addr.name}</p>
+                        <p style={{ fontSize: 12, color: "var(--tx-3)", marginTop: 2 }}>{addr.phone}</p>
+                        <p style={{ fontSize: 12, color: "var(--tx-3)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {addr.address}, {addr.city}, {addr.state} - {addr.pincode}
+                        </p>
+                      </div>
+                      <button type="button" onClick={e => { e.preventDefault(); e.stopPropagation(); deleteSavedAddress(addr.id); }}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#FF465A", fontWeight: 600, flexShrink: 0, padding: "2px 6px" }}>
+                        Remove
+                      </button>
+                    </label>
+                  ))}
+                  <label style={{
+                    display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+                    borderRadius: 10, cursor: "pointer",
+                    border: `1.5px solid ${selectedSavedId === null ? NG : "var(--bd)"}`,
+                    background: selectedSavedId === null ? "rgba(0,230,118,0.06)" : "transparent",
+                    transition: "border-color 0.15s, background 0.15s",
+                  }}>
+                    <input type="radio" name="savedAddr" checked={selectedSavedId === null}
+                      onChange={() => selectSavedAddress(null)} style={{ accentColor: NG }} />
+                    <p style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)" }}>+ Use a new address</p>
+                  </label>
+                </div>
+              </div>
+            )}
 
             <Section title="Contact Information">
               <div className="form-row">
