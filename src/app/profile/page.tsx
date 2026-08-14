@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Phone, Copy, Check, Gift, ShoppingBag, Star, ArrowRight, Share2 } from "lucide-react";
 import { fetchProfileByPhone, getOrCreateProfile, generateCode } from "@/lib/rewards";
@@ -22,6 +22,19 @@ export default function ProfilePage() {
   const [data,    setData]    = useState<Awaited<ReturnType<typeof fetchProfileByPhone>> | null>(null);
   const [copied,  setCopied]  = useState(false);
 
+  useEffect(() => {
+    const saved = localStorage.getItem("peadia_profile_phone");
+    if (saved) {
+      setPhone(saved);
+      // Auto-lookup
+      setLoading(true);
+      fetchProfileByPhone(saved).then(res => {
+        setData(res);
+        setLoading(false);
+      });
+    }
+  }, []);
+
   const lookup = async (e: React.FormEvent) => {
     e.preventDefault();
     const clean = phone.replace(/\D/g, "").slice(0, 10);
@@ -31,7 +44,14 @@ export default function ProfilePage() {
     await getOrCreateProfile(clean);
     const result = await fetchProfileByPhone(clean);
     setData(result);
+    localStorage.setItem("peadia_profile_phone", clean);
     setLoading(false);
+  };
+
+  const logout = () => {
+    localStorage.removeItem("peadia_profile_phone");
+    setData(null);
+    setPhone("");
   };
 
   const profile = data?.profile;
@@ -105,8 +125,8 @@ export default function ProfilePage() {
                   <p style={{ fontSize: 18, fontWeight: 800, color: "var(--tx)" }}>{profile?.name || "Customer"}</p>
                   <p style={{ fontSize: 13, color: "var(--tx-3)" }}>{phone}</p>
                 </div>
-                <button onClick={() => setData(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--tx-3)", textDecoration: "underline" }}>
-                  Change
+                <button onClick={logout} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "var(--tx-3)", textDecoration: "underline" }}>
+                  Logout
                 </button>
               </div>
 

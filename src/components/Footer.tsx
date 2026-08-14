@@ -87,17 +87,15 @@ export function Footer() {
                 <img src={s.logo_url} alt={brandName} style={{ height: 28, width: "auto", borderRadius: 5, objectFit: "contain" }}
                   onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
               ) : (
-                <>
-                  <div style={{ width: 26, height: 26, borderRadius: 6, background: `linear-gradient(135deg,${NG},#00FF88)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Zap style={{ width: 13, height: 13, color: "#0D1117" }} />
-                  </div>
-                  <span style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
-                    {brandName.includes(".")
-                      ? <>{brandName.split(".")[0]}<span style={{ color: NG }}>.{brandName.split(".").slice(1).join(".")}</span></>
-                      : brandName}
-                  </span>
-                </>
+                <div style={{ width: 26, height: 26, borderRadius: 6, background: `linear-gradient(135deg,${NG},#00FF88)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Zap style={{ width: 13, height: 13, color: "#0D1117" }} />
+                </div>
               )}
+              <span style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
+                {brandName.includes(".")
+                  ? <>{brandName.split(".")[0]}<span style={{ color: NG }}>.{brandName.split(".").slice(1).join(".")}</span></>
+                  : brandName}
+              </span>
             </div>
             <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.8, maxWidth: 260, marginBottom: 16 }}>
               India's fastest growing e-commerce platform. Quality products, fast delivery.

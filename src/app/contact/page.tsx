@@ -16,6 +16,18 @@ interface Form {
 const blank: Form = { customer_name: "", customer_phone: "", email: "", subject: "", message: "" };
 const NG = "#00E676";
 
+// ─── Field wrapper ─────────────────────────────────────────────────────────────
+// At module scope so it never remounts on parent re-render (fixes focus-loss bug)
+function F({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="field-label">{label}</label>
+      {children}
+      {error && <p style={{ fontSize: 11, color: "#FF465A", marginTop: 4, fontWeight: 600 }}>{error}</p>}
+    </div>
+  );
+}
+
 export default function ContactPage() {
   const s = useSettings();
   const { toast } = useToast();
@@ -76,13 +88,6 @@ export default function ContactPage() {
     toast(savedToDb ? "Message sent!" : "Message sent! (will sync when online)", "success");
   };
 
-  const F = ({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) => (
-    <div>
-      <label className="field-label">{label}</label>
-      {children}
-      {error && <p style={{ fontSize: 11, color: "#FF465A", marginTop: 4, fontWeight: 600 }}>{error}</p>}
-    </div>
-  );
 
   return (
     <div style={{ padding: "32px 0 60px" }}>
